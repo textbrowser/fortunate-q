@@ -28,12 +28,15 @@
 #ifndef _fortunate_q_h_
 #define _fortunate_q_h_
 
+#include "aes256.h"
+
 #include <QCryptographicHash>
 #include <QHostAddress>
 #include <QPointer>
 #include <QSslSocket>
 #include <QTimer>
 #include <QtDebug>
+#include <QtMath>
 
 class fortunate_q: public QObject
 {
@@ -122,7 +125,11 @@ class fortunate_q: public QObject
 
   QByteArray E(const QByteArray &C, const QByteArray &K)
   {
-    return C + K;
+    aes256 aes(K.constData());
+    auto string(std::string(C.toHex().constData()));
+
+    return QByteArray::fromHex
+      (aes256::to_hex(aes.encrypt_block(aes256::from_hex(string))).data());
   }
 
   QByteArray generate_blocks(const int k, generator_state &G)
@@ -135,6 +142,19 @@ class fortunate_q: public QObject
 	  r = r + E(QByteArray::number(G.m_counter), G.m_key);
 	  G.m_counter += 1;
 	}
+
+    return r;
+  }
+
+  QByteArray pseudo_random_data(const int n, generator_state &G)
+  {
+    QByteArray r;
+
+    if(0 <= n && 1048576 >= n)
+      {
+	r = generate_blocks(qCeil(n / 16.0), G).mid(0, n);
+	G.m_key = generate_blocks(2, G);
+      }
 
     return r;
   }
