@@ -31,12 +31,17 @@
 #include "aes256.h"
 
 #include <QCryptographicHash>
+#include <QElapsedTimer>
 #include <QHostAddress>
 #include <QPointer>
 #include <QSslSocket>
 #include <QTimer>
 #include <QtDebug>
 #include <QtMath>
+
+static qsizetype ACCUMULATOR_MAXOMUM_SIZE = 8 * 1024 * 1024;
+static qsizetype MIN_POOL_SIZE = 64;
+static qsizetype POOLS = 1;
 
 class fortunate_q: public QObject
 {
@@ -45,8 +50,7 @@ class fortunate_q: public QObject
  public:
   fortunate_q(void)
   {
-    m_G = initialize_generator();
-    m_accumulator_maximum_length = 8 * 1024 * 1024; // 8 MiB is huge!
+    m_R = initialize_prng();
     m_tcp_socket_connection_timer.setInterval(500);
   }
 
@@ -56,11 +60,9 @@ class fortunate_q: public QObject
     m_tcp_socket_connection_timer.stop();
   }
 
-  void set_accumulator_size(const qsizetype size)
+  QByteArray random_data(const int n)
   {
-    m_accumulator = m_accumulator.left
-      (qMax(size, static_cast<qsizetype> (1024)));
-    m_accumulator_maximum_length = qMax(size, static_cast<qsizetype> (1024));
+    return random_data(n, m_R);
   }
 
   void set_send_byte(const char byte, const int interval)
@@ -114,18 +116,24 @@ class fortunate_q: public QObject
     qint16 m_counter;
   };
 
-  QByteArray m_accumulator;
+  struct prng_state
+  {
+    QElapsedTimer m_lastReseed;
+    QVector<QByteArray> m_P;
+    generator_state m_G;
+    int m_reseedCnt;
+  };
+
   QHostAddress m_tcp_address;
   QPointer<QIODevice> m_device;
   QSslSocket m_tcp_socket;
   QTimer m_periodic_write_timer;
   QTimer m_tcp_socket_connection_timer;
   char m_send_byte[1];
-  generator_state m_G;
-  qsizetype m_accumulator_maximum_length;
+  prng_state m_R; // The magic pseudo-random number generator.
   quint16 m_tcp_port;
 
-  QByteArray E(const QByteArray &C, const QByteArray &K)
+  static QByteArray E(const QByteArray &C, const QByteArray &K)
   {
     aes256 aes(K.constData());
     auto string(std::string(C.toHex().constData()));
@@ -134,21 +142,23 @@ class fortunate_q: public QObject
       (aes256::to_hex(aes.encrypt_block(aes256::from_hex(string))).data());
   }
 
-  QByteArray generate_blocks(const int k, generator_state &G)
+  static QByteArray generate_blocks(const int k, generator_state &G)
   {
     QByteArray r;
 
     if(G.m_counter != 0)
       for(int i = 1; i <= k; i++)
 	{
-	  r = r + E(QByteArray::number(G.m_counter), G.m_key);
+	  auto C(QByteArray::number(G.m_counter));
+
+	  r = r + E(C.rightJustified(16, '0', true), G.m_key);
 	  G.m_counter += 1;
 	}
 
     return r;
   }
 
-  QByteArray pseudo_random_data(const int n, generator_state &G)
+  static QByteArray pseudo_random_data(const int n, generator_state &G)
   {
     QByteArray r;
 
@@ -161,12 +171,50 @@ class fortunate_q: public QObject
     return r;
   }
 
-  generator_state initialize_generator(void)
+  static QByteArray random_data(const int n, prng_state &R)
+  {
+    if(MIN_POOL_SIZE <= R.m_P.value(0).size() ||
+       R.m_lastReseed.elapsed() > 100 ||
+       R.m_lastReseed.isValid() == false)
+      {
+	QByteArray s;
+
+	R.m_reseedCnt += 1;
+
+	for(int i = 0; i < static_cast<int> (R.m_P.size()); i++)
+	  if(R.m_reseedCnt % static_cast<int> (qPow(2.0, i)) == 0)
+	    {
+	      s = s + QCryptographicHash::hash
+		(R.m_P[i], QCryptographicHash::Sha256);
+	      R.m_P[i].clear();
+	    }
+
+	reseed(s, R.m_G);
+	R.m_lastReseed.start();
+      }
+
+    if(R.m_reseedCnt == 0)
+      return QByteArray(); // Error!
+    else
+      return pseudo_random_data(n, R.m_G);
+  }
+
+  static generator_state initialize_generator(void)
   {
     return generator_state{QByteArray(), 0};
   }
 
-  void reseed(const QByteArray &s, generator_state &G)
+  static prng_state initialize_prng(void)
+  {
+    prng_state R;
+
+    R.m_G = initialize_generator();
+    R.m_P.resize(POOLS);
+    R.m_reseedCnt = 0;
+    return R;
+  }
+
+  static void reseed(const QByteArray &s, generator_state &G)
   {
     G.m_counter += 1;
     G.m_key = QCryptographicHash::hash
@@ -177,16 +225,15 @@ class fortunate_q: public QObject
    void slot_ready_read(void)
    {
      while(m_device && m_device->bytesAvailable() > 0)
-       if(m_accumulator.size() < m_accumulator_maximum_length)
-	 {
-	   auto bytes(m_device->readAll());
+       {
+	 auto bytes(m_device->readAll());
 
-	   m_accumulator.append
-	     (bytes.
-	      mid(0, -m_accumulator.size() + m_accumulator_maximum_length));
-	 }
-       else
-	 Q_UNUSED(m_device->readAll());
+	 if(ACCUMULATOR_MAXOMUM_SIZE > m_R.m_P[0].size())
+	   m_R.m_P[0] = m_R.m_P[0] +
+	     QByteArray::number(0) +
+	     QByteArray::number(bytes.length()) +
+	     bytes;
+       }
    }
 
    void slot_send_byte(void)

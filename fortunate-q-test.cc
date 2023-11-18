@@ -28,6 +28,7 @@
 #include "fortunate-q.h"
 
 #include <QCoreApplication>
+#include <QThread>
 
 #include <cstdio>
 
@@ -36,8 +37,20 @@ int main(int argc, char *argv[])
   QCoreApplication application(argc, argv);
   fortunate_q f;
 
-  f.set_accumulator_size(25000);
   f.set_send_byte(0, 5);
   f.set_tcp_peer("192.168.178.85", 5000);
+
+  while(true)
+    {
+      auto c = f.random_data(250).size();
+
+      if(c == 250)
+	qDebug() << "Found 250 bytes of random data!";
+      else
+	qDebug() << "Not enough randomness!";
+
+      QThread::msleep(250);
+    }
+
   return application.exec();
 }
