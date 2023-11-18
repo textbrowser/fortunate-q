@@ -28,6 +28,7 @@
 #ifndef _fortunate_q_h_
 #define _fortunate_q_h_
 
+#include <QCryptographicHash>
 #include <QHostAddress>
 #include <QPointer>
 #include <QSslSocket>
@@ -47,6 +48,8 @@ class fortunate_q: public QObject
 
   ~fortunate_q()
   {
+    m_periodic_write_timer.stop();
+    m_tcp_socket_connection_timer.stop();
   }
 
   void set_accumulator_size(const qsizetype size)
@@ -96,7 +99,17 @@ class fortunate_q: public QObject
     m_tcp_socket_connection_timer.start();
   }
 
+  void start(void)
+  {
+  }
+
  private:
+  struct generator_state
+  {
+    QByteArray m_key;
+    qint16 m_counter;
+  };
+
   QByteArray m_accumulator;
   QHostAddress m_tcp_address;
   QPointer<QIODevice> m_device;
@@ -106,6 +119,37 @@ class fortunate_q: public QObject
   char m_send_byte[1];
   qsizetype m_accumulator_maximum_length;
   quint16 m_tcp_port;
+
+  QByteArray E(const QByteArray &C, const QByteArray &K)
+  {
+    return C + K;
+  }
+
+  QByteArray generate_blocks(const int k, generator_state &G)
+  {
+    QByteArray r;
+
+    if(G.m_counter != 0)
+      for(int i = 1; i <= k; i++)
+	{
+	  r = r + E(QByteArray::number(G.m_counter), G.m_key);
+	  G.m_counter += 1;
+	}
+
+    return r;
+  }
+
+  generator_state initialize_generator(void)
+  {
+    return generator_state{QByteArray(), 0};
+  }
+
+  void reseed(const QByteArray &s, generator_state &G)
+  {
+    G.m_counter += 1;
+    G.m_key = QCryptographicHash::hash
+      (G.m_key + s, QCryptographicHash::Sha256);
+  }
 
  private slots:
    void slot_ready_read(void)

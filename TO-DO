@@ -1,6 +1,12 @@
 Completed Items
 
+- TCP source.
+
 Remaining Items
 
 - File source.
-- TCP source.
+- Fortuna:
+  - Generate blocks.
+  - Generate random data.
+  - Initialization.
+  - Reseed.
