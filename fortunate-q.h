@@ -163,8 +163,7 @@ class fortunate_q: public QObject
 
   generator_state initialize_generator(void)
   {
-    m_G = generator_state{QByteArray(), 0};
-    return m_G;
+    return generator_state{QByteArray(), 0};
   }
 
   void reseed(const QByteArray &s, generator_state &G)
