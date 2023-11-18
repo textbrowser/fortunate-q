@@ -6,7 +6,10 @@ Remaining Items
 
 - File source.
 - Fortuna:
-  - Generate blocks.
-  - Generate random data.
-  - Initialization.
-  - Reseed.
+  - AddRandomEvent().
+  - GenerateBlocks(). (Completed)
+  - InitializeGenerator(). (Completed)
+  - InitializePRNG().
+  - PseudoRandomData(). (Completed)
+  - RandomData().
+  - Reseed(). (Completed)

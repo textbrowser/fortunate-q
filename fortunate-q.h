@@ -45,6 +45,7 @@ class fortunate_q: public QObject
  public:
   fortunate_q(void)
   {
+    m_G = initialize_generator();
     m_accumulator_maximum_length = 8 * 1024 * 1024; // 8 MiB is huge!
     m_tcp_socket_connection_timer.setInterval(500);
   }
@@ -64,6 +65,10 @@ class fortunate_q: public QObject
 
   void set_send_byte(const char byte, const int interval)
   {
+    /*
+    ** Some devices require periodic data.
+    */
+
     connect(&m_periodic_write_timer,
 	    &QTimer::timeout,
 	    this,
@@ -102,10 +107,6 @@ class fortunate_q: public QObject
     m_tcp_socket_connection_timer.start();
   }
 
-  void start(void)
-  {
-  }
-
  private:
   struct generator_state
   {
@@ -120,6 +121,7 @@ class fortunate_q: public QObject
   QTimer m_periodic_write_timer;
   QTimer m_tcp_socket_connection_timer;
   char m_send_byte[1];
+  generator_state m_G;
   qsizetype m_accumulator_maximum_length;
   quint16 m_tcp_port;
 
@@ -161,7 +163,8 @@ class fortunate_q: public QObject
 
   generator_state initialize_generator(void)
   {
-    return generator_state{QByteArray(), 0};
+    m_G = generator_state{QByteArray(), 0};
+    return m_G;
   }
 
   void reseed(const QByteArray &s, generator_state &G)
