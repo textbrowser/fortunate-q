@@ -1,15 +1,14 @@
 Completed Items
 
+- File source.
+- Fortuna:
+  - AddRandomEvent(). (Completed)
+  - GenerateBlocks(). (Completed)
+  - InitializeGenerator(). (Completed)
+  - InitializePRNG(). (Completed)
+  - PseudoRandomData(). (Completed)
+  - RandomData(). (Completed)
+  - Reseed(). (Completed)
 - TCP source.
 
 Remaining Items
-
-- File source.
-- Fortuna:
-  - AddRandomEvent().
-  - GenerateBlocks(). (Completed)
-  - InitializeGenerator(). (Completed)
-  - InitializePRNG().
-  - PseudoRandomData(). (Completed)
-  - RandomData().
-  - Reseed(). (Completed)

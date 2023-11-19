@@ -35,6 +35,7 @@
 #include <QFile>
 #include <QHostAddress>
 #include <QPointer>
+#include <QSocketNotifier>
 #include <QSslSocket>
 #include <QTimer>
 #include <QtDebug>
@@ -64,6 +65,21 @@ class fortunate_q: public QObject
   QByteArray random_data(const int n)
   {
     return random_data(n, m_R);
+  }
+
+  void set_file_peer(const QString &file_name)
+  {
+    m_file.close();
+    m_file.setFileName(file_name);
+    m_file.open(QIODevice::ReadOnly | QIODevice::Unbuffered);
+    m_file_notifier = m_file_notifier ?
+      (m_file_notifier->deleteLater(),
+       new QSocketNotifier(m_file.handle(), QSocketNotifier::Read, this)) :
+      (new QSocketNotifier(m_file.handle(), QSocketNotifier::Read, this));
+    connect(m_file_notifier,
+	    SIGNAL(activated(QSocketDescriptor, QSocketNotifier::Type)),
+	    this,
+	    SLOT(slot_file_ready_read(void)));
   }
 
   void set_send_byte(const char byte, const int interval)
@@ -132,6 +148,7 @@ class fortunate_q: public QObject
 
   QFile m_file;
   QHostAddress m_tcp_address;
+  QPointer<QSocketNotifier> m_file_notifier;
   QSslSocket m_tcp_socket;
   QTimer m_periodic_write_timer;
   QTimer m_tcp_socket_connection_timer;
@@ -230,15 +247,18 @@ class fortunate_q: public QObject
 
   void process_device(QIODevice *device, const int i, const int s)
   {
-    while(device && device->bytesAvailable() > 0 && device->isOpen())
-      {
-	auto e(device->readAll().mid(0, 32));
+    if(device && device->isOpen())
+      do
+	{
+	  auto e(device->read(32));
 
-	m_R.m_P[i] = m_R.m_P[i] +
-	  QByteArray::number(s) +
-	  QByteArray::number(e.size()) +
-	  e;
-      }
+	  if(!e.isEmpty())
+	    m_R.m_P[i] = m_R.m_P[i] +
+	      QByteArray::number(s) +
+	      QByteArray::number(e.size()) +
+	      e;
+	}
+      while(device->bytesAvailable() > 0);
   }
 
  private slots:
