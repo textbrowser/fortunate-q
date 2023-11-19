@@ -29,8 +29,6 @@
 
 #include <QCoreApplication>
 
-#include <cstdio>
-
 int main(int argc, char *argv[])
 {
   QCoreApplication application(argc, argv);
