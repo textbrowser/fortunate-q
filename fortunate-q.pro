@@ -136,7 +136,7 @@ unix {
 QMAKE_EXTRA_TARGETS += purge
 }
 
-HEADERS	       += fortunate-q.h
+HEADERS	       += fortunate-q.h fortunate-q-sample-class.h
 INCLUDEPATH    += .
 MOC_DIR         = Temporary/moc
 OBJECTS_DIR     = Temporary/obj

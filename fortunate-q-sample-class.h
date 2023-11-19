@@ -25,16 +25,37 @@
 ** FORTUNATEQ, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "fortunate-q-sample-class.h"
+#ifndef _fortunate_q_sample_class_h_
+#define _fortunate_q_sample_class_h_
 
-#include <QCoreApplication>
+#include "fortunate-q.h"
 
-#include <cstdio>
-
-int main(int argc, char *argv[])
+class fortunate_q_sample_class: public QObject
 {
-  QCoreApplication application(argc, argv);
-  fortunate_q_sample_class f;
+  Q_OBJECT
 
-  return application.exec();
-}
+ public:
+  fortunate_q_sample_class(void):QObject()
+  {
+    connect(&m_timer,
+	    &QTimer::timeout,
+	    this,
+	    &fortunate_q_sample_class::slot_timeout);
+    m_f = new fortunate_q(this);
+    m_f->set_send_byte(0, 5);
+    m_f->set_tcp_peer("192.168.178.85", 5000);
+    m_timer.start(1);
+  }
+
+ private:
+  QTimer m_timer;
+  fortunate_q *m_f;
+
+ private slots:
+  void slot_timeout(void)
+  {
+    qDebug() << m_f->random_data(96).toHex();
+  }
+};
+
+#endif

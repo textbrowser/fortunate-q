@@ -32,6 +32,7 @@
 
 #include <QCryptographicHash>
 #include <QElapsedTimer>
+#include <QFile>
 #include <QHostAddress>
 #include <QPointer>
 #include <QSslSocket>
@@ -39,18 +40,18 @@
 #include <QtDebug>
 #include <QtMath>
 
-static qsizetype ACCUMULATOR_MAXOMUM_SIZE = 8 * 1024 * 1024;
 static qsizetype MIN_POOL_SIZE = 64;
-static qsizetype POOLS = 1;
+static qsizetype POOLS = 32;
 
 class fortunate_q: public QObject
 {
   Q_OBJECT
 
  public:
-  fortunate_q(void)
+  fortunate_q(QObject *parent):QObject(parent)
   {
     m_R = initialize_prng();
+    m_source_indices.resize(POOLS);
     m_tcp_socket_connection_timer.setInterval(500);
   }
 
@@ -95,14 +96,13 @@ class fortunate_q: public QObject
     connect(&m_tcp_socket,
 	    &QSslSocket::readyRead,
 	    this,
-	    &fortunate_q::slot_ready_read,
+	    &fortunate_q::slot_tcp_socket_ready_read,
 	    Qt::UniqueConnection);
     connect(&m_tcp_socket_connection_timer,
 	    &QTimer::timeout,
 	    this,
 	    &fortunate_q::slot_tcp_socket_disconnected,
 	    Qt::UniqueConnection);
-    m_device = &m_tcp_socket;
     m_tcp_address = QHostAddress(address);
     m_tcp_port = port;
     m_tcp_socket.abort();
@@ -110,6 +110,12 @@ class fortunate_q: public QObject
   }
 
  private:
+  enum class Devices
+  {
+    FILE = 0,
+    TCP = 1
+  };
+
   struct generator_state
   {
     QByteArray m_key;
@@ -124,11 +130,12 @@ class fortunate_q: public QObject
     int m_reseedCnt;
   };
 
+  QFile m_file;
   QHostAddress m_tcp_address;
-  QPointer<QIODevice> m_device;
   QSslSocket m_tcp_socket;
   QTimer m_periodic_write_timer;
   QTimer m_tcp_socket_connection_timer;
+  QVector<int> m_source_indices;
   char m_send_byte[1];
   prng_state m_R; // The magic pseudo-random number generator.
   quint16 m_tcp_port;
@@ -149,10 +156,10 @@ class fortunate_q: public QObject
     if(G.m_counter != 0)
       for(int i = 1; i <= k; i++)
 	{
-	  auto C(QByteArray::number(G.m_counter));
-
-	  r = r + E(C.rightJustified(16, '0', true), G.m_key);
 	  G.m_counter += 1;
+	  r = r + E
+	    (QByteArray::number(G.m_counter).rightJustified(16, '0', true),
+	     G.m_key);
 	}
 
     return r;
@@ -173,7 +180,7 @@ class fortunate_q: public QObject
 
   static QByteArray random_data(const int n, prng_state &R)
   {
-    if(MIN_POOL_SIZE <= R.m_P.value(0).size() ||
+    if(MIN_POOL_SIZE <= R.m_P[0].size() ||
        R.m_lastReseed.elapsed() > 100 ||
        R.m_lastReseed.isValid() == false)
       {
@@ -221,42 +228,55 @@ class fortunate_q: public QObject
       (G.m_key + s, QCryptographicHash::Sha256);
   }
 
+  void process_device(QIODevice *device, const int i, const int s)
+  {
+    while(device && device->bytesAvailable() > 0 && device->isOpen())
+      {
+	auto e(device->readAll().mid(0, 32));
+
+	m_R.m_P[i] = m_R.m_P[i] +
+	  QByteArray::number(s) +
+	  QByteArray::number(e.size()) +
+	  e;
+      }
+  }
+
  private slots:
-   void slot_ready_read(void)
-   {
-     while(m_device && m_device->bytesAvailable() > 0)
-       {
-	 auto bytes(m_device->readAll());
+  void slot_file_ready_read(void)
+  {
+    auto s = static_cast<int> (Devices::FILE);
 
-	 if(ACCUMULATOR_MAXOMUM_SIZE > m_R.m_P[0].size())
-	   m_R.m_P[0] = m_R.m_P[0] +
-	     QByteArray::number(0) +
-	     QByteArray::number(bytes.length()) +
-	     bytes;
-       }
-   }
+    m_source_indices[s] = (m_source_indices[s] + 1) % POOLS;
+    process_device(&m_file, s, m_source_indices[s]);
+  }
 
-   void slot_send_byte(void)
-   {
-     if(!m_device || !m_device->isOpen())
-       return;
+  void slot_tcp_socket_ready_read(void)
+  {
+    auto s = static_cast<int> (Devices::TCP);
 
-     m_device->write(m_send_byte, static_cast<qsizetype> (1));
-   }
+    m_source_indices[s] = (m_source_indices[s] + 1) % POOLS;
+    process_device(&m_tcp_socket, s, m_source_indices[s]);
+  }
 
-   void slot_tcp_socket_connected(void)
-   {
-     m_tcp_socket_connection_timer.stop();
-   }
+  void slot_send_byte(void)
+  {
+    if(m_tcp_socket.state() == QAbstractSocket::ConnectedState)
+      m_tcp_socket.write(m_send_byte, static_cast<qsizetype> (1));
+  }
 
-   void slot_tcp_socket_disconnected(void)
-   {
-     if(m_tcp_socket.state() == QAbstractSocket::UnconnectedState)
-       {
-	 m_tcp_socket.connectToHost(m_tcp_address, m_tcp_port);
-	 m_tcp_socket_connection_timer.start();
-       }
-   }
+  void slot_tcp_socket_connected(void)
+  {
+    m_tcp_socket_connection_timer.stop();
+  }
+
+  void slot_tcp_socket_disconnected(void)
+  {
+    if(m_tcp_socket.state() == QAbstractSocket::UnconnectedState)
+      {
+	m_tcp_socket.connectToHost(m_tcp_address, m_tcp_port);
+	m_tcp_socket_connection_timer.start();
+      }
+  }
 };
 
 #endif
