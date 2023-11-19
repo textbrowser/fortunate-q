@@ -97,7 +97,7 @@ class fortunate_q: public QObject
     m_send_byte[0] = byte;
   }
 
-  void set_tcp_peer(const QString &address, const quint16 port)
+  void set_tcp_peer(const QString &address, const bool tls, const quint16 port)
   {
     connect(&m_tcp_socket,
 	    &QSslSocket::connected,
@@ -114,6 +114,11 @@ class fortunate_q: public QObject
 	    this,
 	    &fortunate_q::slot_tcp_socket_ready_read,
 	    Qt::UniqueConnection);
+    connect(&m_tcp_socket,
+	    SIGNAL(sslErrors(const QList<QSslError> &)),
+	    this,
+	    SLOT(slot_tcp_socket_ssl_erros(const QList<QSslError> &)),
+	    Qt::UniqueConnection);
     connect(&m_tcp_socket_connection_timer,
 	    &QTimer::timeout,
 	    this,
@@ -122,6 +127,7 @@ class fortunate_q: public QObject
     m_tcp_address = QHostAddress(address);
     m_tcp_port = port;
     m_tcp_socket.abort();
+    m_tcp_socket_tls = tls;
     m_tcp_socket_connection_timer.start();
   }
 
@@ -153,6 +159,7 @@ class fortunate_q: public QObject
   QTimer m_periodic_write_timer;
   QTimer m_tcp_socket_connection_timer;
   QVector<int> m_source_indices;
+  bool m_tcp_socket_tls;
   char m_send_byte[1];
   prng_state m_R; // The magic pseudo-random number generator.
   quint16 m_tcp_port;
@@ -270,14 +277,6 @@ class fortunate_q: public QObject
     process_device(&m_file, m_source_indices[s], s);
   }
 
-  void slot_tcp_socket_ready_read(void)
-  {
-    auto s = static_cast<int> (Devices::TCP);
-
-    m_source_indices[s] = (m_source_indices[s] + 1) % POOLS;
-    process_device(&m_tcp_socket, m_source_indices[s], s);
-  }
-
   void slot_send_byte(void)
   {
     if(m_tcp_socket.state() == QAbstractSocket::ConnectedState)
@@ -293,9 +292,29 @@ class fortunate_q: public QObject
   {
     if(m_tcp_socket.state() == QAbstractSocket::UnconnectedState)
       {
-	m_tcp_socket.connectToHost(m_tcp_address, m_tcp_port);
+	if(m_tcp_socket_tls)
+	  m_tcp_socket.connectToHostEncrypted
+	    (m_tcp_address.toString(), m_tcp_port);
+	else
+	  m_tcp_socket.connectToHost(m_tcp_address, m_tcp_port);
+
+	m_tcp_socket.ignoreSslErrors();
 	m_tcp_socket_connection_timer.start();
       }
+  }
+
+  void slot_tcp_socket_ready_read(void)
+  {
+    auto s = static_cast<int> (Devices::TCP);
+
+    m_source_indices[s] = (m_source_indices[s] + 1) % POOLS;
+    process_device(&m_tcp_socket, m_source_indices[s], s);
+  }
+
+  void slot_tcp_socket_ssl_erros(const QList<QSslError> &errors)
+  {
+    Q_UNUSED(errors);
+    m_tcp_socket.ignoreSslErrors();
   }
 };
 

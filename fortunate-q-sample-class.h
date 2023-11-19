@@ -44,7 +44,7 @@ class fortunate_q_sample_class: public QObject
     m_f = new fortunate_q(this);
     m_f->set_file_peer("/dev/urandom");
     m_f->set_send_byte(0, 5);
-    m_f->set_tcp_peer("192.168.178.85", 5000);
+    m_f->set_tcp_peer("192.168.178.85", false, 5000);
     m_timer.start(1);
   }
 
