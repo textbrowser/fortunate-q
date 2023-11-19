@@ -267,7 +267,7 @@ class fortunate_q: public QObject
     auto s = static_cast<int> (Devices::FILE);
 
     m_source_indices[s] = (m_source_indices[s] + 1) % POOLS;
-    process_device(&m_file, s, m_source_indices[s]);
+    process_device(&m_file, m_source_indices[s], s);
   }
 
   void slot_tcp_socket_ready_read(void)
@@ -275,7 +275,7 @@ class fortunate_q: public QObject
     auto s = static_cast<int> (Devices::TCP);
 
     m_source_indices[s] = (m_source_indices[s] + 1) % POOLS;
-    process_device(&m_tcp_socket, s, m_source_indices[s]);
+    process_device(&m_tcp_socket, m_source_indices[s], s);
   }
 
   void slot_send_byte(void)
