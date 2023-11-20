@@ -180,10 +180,10 @@ class fortunate_q: public QObject
     if(G.m_counter != 0)
       for(int i = 1; i <= k; i++)
 	{
-	  G.m_counter += 1;
 	  r = r + E
 	    (QByteArray::number(G.m_counter).rightJustified(16, '0', true),
 	     G.m_key);
+	  G.m_counter += 1;
 	}
 
     return r;
@@ -204,7 +204,7 @@ class fortunate_q: public QObject
 
   static QByteArray random_data(const int n, prng_state &R)
   {
-    if(MIN_POOL_SIZE <= R.m_P[0].size() ||
+    if(MIN_POOL_SIZE <= R.m_P.value(0).size() ||
        R.m_lastReseed.elapsed() > 100 ||
        R.m_lastReseed.isValid() == false)
       {
@@ -232,7 +232,11 @@ class fortunate_q: public QObject
 
   static generator_state initialize_generator(void)
   {
-    return generator_state{QByteArray(), 0};
+    /*
+    ** What is a zero key?
+    */
+
+    return generator_state{QByteArray(32, '0'), 0};
   }
 
   static prng_state initialize_prng(void)
@@ -259,11 +263,14 @@ class fortunate_q: public QObject
 	{
 	  auto e(device->read(32));
 
-	  if(!e.isEmpty())
-	    m_R.m_P[i] = m_R.m_P[i] +
-	      QByteArray::number(s) +
-	      QByteArray::number(e.size()) +
-	      e;
+	  if(!e.isEmpty() && i < m_R.m_P.size())
+	    {
+	      m_R.m_P[i] = m_R.m_P[i] +
+		QByteArray::number(s) +
+		QByteArray::number(e.size()) +
+		e;
+	      emit pool_filled(i, s);
+	    }
 	}
       while(device->bytesAvailable() > 0);
   }
@@ -316,6 +323,9 @@ class fortunate_q: public QObject
     Q_UNUSED(errors);
     m_tcp_socket.ignoreSslErrors();
   }
+
+ signals:
+  void pool_filled(const int index, const int source);
 };
 
 #endif

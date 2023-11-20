@@ -37,24 +37,24 @@ class fortunate_q_sample_class: public QObject
  public:
   fortunate_q_sample_class(void):QObject()
   {
-    connect(&m_timer,
-	    &QTimer::timeout,
-	    this,
-	    &fortunate_q_sample_class::slot_timeout);
     m_f = new fortunate_q(this);
     m_f->set_file_peer("/dev/urandom");
     m_f->set_send_byte(0, 5);
     m_f->set_tcp_peer("192.168.178.85", false, 5000);
-    m_timer.start(1);
+    connect(m_f,
+	    SIGNAL(pool_filled(const int, const int)),
+	    this,
+	    SLOT(slot_pool_filled(const int, const int)));
   }
 
  private:
-  QTimer m_timer;
   fortunate_q *m_f;
 
  private slots:
-  void slot_timeout(void)
+  void slot_pool_filled(const int index, const int source)
   {
+    Q_UNUSED(index);
+    Q_UNUSED(source);
     qDebug() << m_f->random_data(15).toHex();
   }
 };
