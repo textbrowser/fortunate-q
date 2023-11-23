@@ -1,5 +1,6 @@
 Completed Items
 
+- Allow host names for TCP devices.
 - File source.
 - Fortuna:
   - AddRandomEvent(). (Completed)
@@ -9,9 +10,7 @@ Completed Items
   - PseudoRandomData(). (Completed)
   - RandomData(). (Completed)
   - Reseed(). (Completed)
+- Increase counter width.
 - TCP source.
 
 Remaining Items
-
-- Allow host names for TCP devices.
-- Increase counter width.

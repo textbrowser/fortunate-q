@@ -124,7 +124,7 @@ class fortunate_q: public QObject
 	    this,
 	    &fortunate_q::slot_tcp_socket_disconnected,
 	    Qt::UniqueConnection);
-    m_tcp_address = QHostAddress(address);
+    m_tcp_address = address;
     m_tcp_port = port;
     m_tcp_socket.abort();
     m_tcp_socket_tls = tls;
@@ -141,7 +141,11 @@ class fortunate_q: public QObject
   struct generator_state
   {
     QByteArray m_key;
-    qint16 m_counter;
+#ifndef __SIZEOF_INT128__
+    quint64 m_counter;
+#else
+    unsigned __int128 m_counter;
+#endif
   };
 
   struct prng_state
@@ -149,13 +153,17 @@ class fortunate_q: public QObject
     QElapsedTimer m_lastReseed;
     QVector<QByteArray> m_P;
     generator_state m_G;
-    int m_reseedCnt;
+#ifndef __SIZEOF_INT128__
+    quint64 m_reseedCnt;
+#else
+    unsigned __int128 m_reseedCnt;
+#endif
   };
 
   QFile m_file;
-  QHostAddress m_tcp_address;
   QPointer<QSocketNotifier> m_file_notifier;
   QSslSocket m_tcp_socket;
+  QString m_tcp_address;
   QTimer m_periodic_write_timer;
   QTimer m_tcp_socket_connection_timer;
   QVector<int> m_source_indices;
@@ -180,9 +188,10 @@ class fortunate_q: public QObject
     if(G.m_counter != 0)
       for(int i = 1; i <= k; i++)
 	{
-	  r = r + E
-	    (QByteArray::number(G.m_counter).rightJustified(16, '0', true),
-	     G.m_key);
+	  QByteArray number(16, 0);
+
+	  memcpy(number.data(), &G.m_counter, 16);
+	  r = r + E(number, G.m_key);
 	  G.m_counter += 1;
 	}
 
@@ -300,8 +309,7 @@ class fortunate_q: public QObject
     if(m_tcp_socket.state() == QAbstractSocket::UnconnectedState)
       {
 	if(m_tcp_socket_tls)
-	  m_tcp_socket.connectToHostEncrypted
-	    (m_tcp_address.toString(), m_tcp_port);
+	  m_tcp_socket.connectToHostEncrypted(m_tcp_address, m_tcp_port);
 	else
 	  m_tcp_socket.connectToHost(m_tcp_address, m_tcp_port);
 
