@@ -7,6 +7,7 @@ Features:
 - Eventful.
 - Lock-less!
 - Multiple pools and sources are allowed.
+- Native 128-bit m_counter.
 - Single source file! Cipher source(s) separate.
 - TLS supported.
 - Trustworthy entropy sources are not required.

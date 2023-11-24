@@ -44,6 +44,41 @@
 static qsizetype MIN_POOL_SIZE = 64;
 static qsizetype POOLS = 32;
 
+class counter_q
+{
+ public:
+  counter_q(void)
+  {
+    m_l = m_r = 0;
+  }
+
+  QByteArray value(void) const
+  {
+    QByteArray value(16, 0);
+
+    memcpy(value.data(), &m_l, 8);
+    memcpy(value.data() + 8, &m_r, 8);
+    return value;
+  }
+
+  bool is_zero(void) const
+  {
+    return m_l == 0 && m_r == 0;
+  }
+
+  void increment(void)
+  {
+    m_r += 1;
+
+    if(m_r == 0)
+      m_l += 1;
+  }
+
+ private:
+  quint64 m_l;
+  quint64 m_r;
+};
+
 class fortunate_q: public QObject
 {
   Q_OBJECT
@@ -141,11 +176,7 @@ class fortunate_q: public QObject
   struct generator_state
   {
     QByteArray m_key;
-#ifndef __SIZEOF_INT128__
-    quint64 m_counter;
-#else
-    unsigned __int128 m_counter;
-#endif
+    counter_q m_counter;
   };
 
   struct prng_state
@@ -185,14 +216,11 @@ class fortunate_q: public QObject
   {
     QByteArray r;
 
-    if(G.m_counter != 0)
+    if(!G.m_counter.is_zero())
       for(int i = 1; i <= k; i++)
 	{
-	  QByteArray number(16, 0);
-
-	  memcpy(number.data(), &G.m_counter, 16);
-	  r = r + E(number, G.m_key);
-	  G.m_counter += 1;
+	  r = r + E(G.m_counter.value(), G.m_key);
+	  G.m_counter.increment();
 	}
 
     return r;
@@ -245,7 +273,7 @@ class fortunate_q: public QObject
     ** What is a zero key?
     */
 
-    return generator_state{QByteArray(32, '0'), 0};
+    return generator_state{QByteArray(32, '0'), counter_q()};
   }
 
   static prng_state initialize_prng(void)
@@ -260,7 +288,7 @@ class fortunate_q: public QObject
 
   static void reseed(const QByteArray &s, generator_state &G)
   {
-    G.m_counter += 1;
+    G.m_counter.increment();
     G.m_key = QCryptographicHash::hash
       (G.m_key + s, QCryptographicHash::Sha256);
   }
