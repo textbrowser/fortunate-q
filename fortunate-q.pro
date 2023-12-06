@@ -35,7 +35,6 @@ QMAKE_CXXFLAGS_RELEASE += -Wall \
                           -fstack-protector-all \
                           -funroll-loops \
                           -fwrapv \
-                          -pedantic \
                           -std=c++17
 } else:freebsd-* {
 QMAKE_CXXFLAGS_RELEASE += -Wall \
@@ -53,7 +52,6 @@ QMAKE_CXXFLAGS_RELEASE += -Wall \
                           -fstack-protector-all \
                           -funroll-loops \
                           -fwrapv \
-                          -pedantic \
                           -std=c++17
 } else:macx {
 QMAKE_CXXFLAGS_RELEASE += -Wall \
@@ -71,7 +69,6 @@ QMAKE_CXXFLAGS_RELEASE += -Wall \
                           -fstack-protector-all \
                           -funroll-loops \
                           -fwrapv \
-                          -pedantic \
                           -std=c++17
 } else:win32 {
 QMAKE_CXXFLAGS_RELEASE += -Wall \
@@ -92,7 +89,6 @@ QMAKE_CXXFLAGS_RELEASE += -Wall \
                           -fPIE \
                           -funroll-loops \
                           -fwrapv \
-                          -pedantic \
                           -pie \
                           -std=c++17
 } else {
@@ -117,7 +113,6 @@ QMAKE_CXXFLAGS_RELEASE += -Wall \
                           -fstack-protector-all \
                           -funroll-loops \
                           -fwrapv \
-                          -pedantic \
                           -pie \
                           -std=c++17
 }
