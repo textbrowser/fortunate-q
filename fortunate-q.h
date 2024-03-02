@@ -109,6 +109,9 @@ class fortunate_q: public QObject
 
   void set_file_peer(const QString &file_name)
   {
+    if(file_name.trimmed().isEmpty())
+      return;
+
     m_file.close();
     m_file.setFileName(file_name);
     m_file.open(QIODevice::ReadOnly | QIODevice::Unbuffered);
@@ -128,6 +131,9 @@ class fortunate_q: public QObject
     ** Some devices require periodic data.
     */
 
+    if(interval <= 0)
+      return;
+
     connect(&m_periodic_write_timer,
 	    &QTimer::timeout,
 	    this,
@@ -139,6 +145,9 @@ class fortunate_q: public QObject
 
   void set_tcp_peer(const QString &address, const bool tls, const quint16 port)
   {
+    if(address.trimmed().isEmpty())
+      return;
+
     connect(&m_tcp_socket,
 	    &QSslSocket::connected,
 	    this,
@@ -164,7 +173,7 @@ class fortunate_q: public QObject
 	    this,
 	    &fortunate_q::slot_tcp_socket_disconnected,
 	    Qt::UniqueConnection);
-    m_tcp_address = address;
+    m_tcp_address = address.trimmed();
     m_tcp_port = port;
     m_tcp_socket.abort();
     m_tcp_socket_tls = tls;
