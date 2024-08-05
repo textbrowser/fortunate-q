@@ -94,6 +94,7 @@ QMAKE_CXXFLAGS_RELEASE += -Wall \
 } else {
 QMAKE_CXXFLAGS_RELEASE += -Wall \
                           -Wcast-qual \
+                          -Wdangling-reference \
                           -Wdouble-promotion \
                           -Wenum-compare \
                           -Wextra \

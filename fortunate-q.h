@@ -220,7 +220,7 @@ class fortunate_q: public QObject
   static QByteArray E(const QByteArray &C, const QByteArray &K)
   {
     aes256 aes(K.constData());
-    auto string(std::string(C.toHex().constData()));
+    auto const &string(std::string(C.toHex().constData()));
 
     return QByteArray::fromHex
       (aes256::to_hex(aes.encrypt_block(aes256::from_hex(string))).data());
@@ -312,7 +312,7 @@ class fortunate_q: public QObject
     if(device && device->isOpen())
       do
 	{
-	  auto e(device->read(32));
+	  auto const &e(device->read(32));
 
 	  if(!e.isEmpty() && i < m_R.m_P.size())
 	    {
@@ -329,7 +329,7 @@ class fortunate_q: public QObject
  private slots:
   void slot_file_ready_read(void)
   {
-    auto s = static_cast<int> (Devices::FILE);
+    auto const s = static_cast<int> (Devices::FILE);
 
     m_source_indices[s] = (m_source_indices[s] + 1) % POOLS;
     process_device(&m_file, m_source_indices[s], s);
@@ -366,7 +366,7 @@ class fortunate_q: public QObject
 
   void slot_tcp_socket_ready_read(void)
   {
-    auto s = static_cast<int> (Devices::TCP);
+    auto const s = static_cast<int> (Devices::TCP);
 
     m_source_indices[s] = (m_source_indices[s] + 1) % POOLS;
     process_device(&m_tcp_socket, m_source_indices[s], s);
