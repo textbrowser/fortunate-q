@@ -1,4 +1,4 @@
-A Qt implementation of Fortuna. Qt 5.15 LTS is required.
+A Qt implementation of Fortuna. Qt 5.15 LTS or newer is required.
 
 Example Arduino entropy source: https://github.com/textbrowser/glitch-projects.
 
