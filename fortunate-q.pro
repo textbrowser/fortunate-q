@@ -1,5 +1,5 @@
 unix {
-purge.commands = find . -name '*~' -exec rm {} \\;
+purge.commands = find . -name \'*~\' -exec rm {} \\;
 }
 
 CONFIG		+= qt release warn_on
