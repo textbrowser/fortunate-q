@@ -62,7 +62,7 @@ class counter_q
     QByteArray value(16, 0);
 
     memcpy(value.data(), &m_l, 8);
-    memcpy(value.data() + 8, &m_r, 8);
+    memcpy(8 + value.data(), &m_r, 8);
     return value;
   }
 
@@ -89,9 +89,11 @@ class fortunate_q: public QObject
   Q_OBJECT
 
  public:
-  fortunate_q(QObject *parent):QObject(parent)
+  fortunate_q
+    (QObject *parent, const QCryptographicHash::Algorithm hash_algorithm):
+      QObject(parent)
   {
-    m_R = initialize_prng();
+    m_R = initialize_prng(hash_algorithm);
     m_source_indices.resize(POOLS);
     m_tcp_socket_connection_timer.setInterval(500);
   }
@@ -114,15 +116,20 @@ class fortunate_q: public QObject
 
     m_file.close();
     m_file.setFileName(file_name);
-    m_file.open(QIODevice::ReadOnly | QIODevice::Unbuffered);
-    m_file_notifier = m_file_notifier ?
-      (m_file_notifier->deleteLater(),
-       new QSocketNotifier(m_file.handle(), QSocketNotifier::Read, this)) :
-      (new QSocketNotifier(m_file.handle(), QSocketNotifier::Read, this));
-    connect(m_file_notifier,
-	    SIGNAL(activated(QSocketDescriptor, QSocketNotifier::Type)),
-	    this,
-	    SLOT(slot_file_ready_read(void)));
+
+    if(m_file.open(QIODevice::ReadOnly | QIODevice::Unbuffered))
+      {
+	m_file_notifier = m_file_notifier ?
+	  (m_file_notifier->deleteLater(),
+	   new QSocketNotifier(m_file.handle(), QSocketNotifier::Read, this)) :
+	  (new QSocketNotifier(m_file.handle(), QSocketNotifier::Read, this));
+	connect(m_file_notifier,
+		SIGNAL(activated(QSocketDescriptor, QSocketNotifier::Type)),
+		this,
+		SLOT(slot_file_ready_read(void)));
+      }
+    else
+      qDebug() << tr("Cannot open '%1'.").arg(file_name);
   }
 
   void set_send_byte(const char byte, const int interval)
@@ -148,6 +155,9 @@ class fortunate_q: public QObject
     if(address.trimmed().isEmpty())
       return;
 
+    m_tcp_address = address.trimmed();
+    m_tcp_port = port;
+    m_tcp_socket_tls = tls;
     connect(&m_tcp_socket,
 	    &QSslSocket::connected,
 	    this,
@@ -173,10 +183,7 @@ class fortunate_q: public QObject
 	    this,
 	    &fortunate_q::slot_tcp_socket_disconnected,
 	    Qt::UniqueConnection);
-    m_tcp_address = address.trimmed();
-    m_tcp_port = port;
     m_tcp_socket.abort();
-    m_tcp_socket_tls = tls;
     m_tcp_socket_connection_timer.start();
   }
 
@@ -190,11 +197,13 @@ class fortunate_q: public QObject
   struct generator_state
   {
     QByteArray m_key;
+    QCryptographicHash::Algorithm m_hash_algorithm;
     counter_q m_counter;
   };
 
   struct prng_state
   {
+    QCryptographicHash::Algorithm m_hash_algorithm;
     QElapsedTimer m_lastReseed;
     QVector<QByteArray> m_P;
     generator_state m_G;
@@ -266,8 +275,7 @@ class fortunate_q: public QObject
 	for(int i = 0; i < static_cast<int> (R.m_P.size()); i++)
 	  if(R.m_reseedCnt % static_cast<quint64> (qPow(2.0, i)) == 0)
 	    {
-	      s = s + QCryptographicHash::hash
-		(R.m_P[i], QCryptographicHash::Sha256);
+	      s = s + QCryptographicHash::hash(R.m_P[i], R.m_hash_algorithm);
 	      R.m_P[i].clear();
 	    }
 
@@ -281,21 +289,24 @@ class fortunate_q: public QObject
       return pseudo_random_data(n, R.m_G);
   }
 
-  static generator_state initialize_generator(void)
+  static generator_state initialize_generator
+    (const QCryptographicHash::Algorithm hash_algorithm)
   {
     /*
     ** What is a zero key?
     */
 
-    return generator_state{QByteArray(32, '0'), counter_q()};
+    return generator_state{QByteArray(32, '0'), hash_algorithm, counter_q()};
   }
 
-  static prng_state initialize_prng(void)
+  static prng_state initialize_prng
+    (const QCryptographicHash::Algorithm hash_algorithm)
   {
     prng_state R;
 
-    R.m_G = initialize_generator();
+    R.m_G = initialize_generator(hash_algorithm);
     R.m_P.resize(POOLS);
+    R.m_hash_algorithm = hash_algorithm;
     R.m_reseedCnt = 0;
     return R;
   }
@@ -303,8 +314,7 @@ class fortunate_q: public QObject
   static void reseed(const QByteArray &s, generator_state &G)
   {
     G.m_counter.increment();
-    G.m_key = QCryptographicHash::hash
-      (G.m_key + s, QCryptographicHash::Sha256);
+    G.m_key = QCryptographicHash::hash(G.m_key + s, G.m_hash_algorithm);
   }
 
   void process_device(QIODevice *device, const int i, const int s)

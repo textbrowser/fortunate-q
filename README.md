@@ -1,10 +1,12 @@
-A Qt implementation of Fortuna. Qt 5.15 LTS or newer is required.
+A Qt implementation of Fortuna. Qt LTS is required.
 
 Example Arduino entropy source: https://github.com/textbrowser/glitch-projects.
 
-Features:
+Features
+
 - AES-256. Other block ciphers allowed.
 - Eventful.
+- Keccak-256, SHA-256, SHA3-256.
 - Lock-less!
 - Multiple pools and sources are allowed.
 - Native 128-bit m_counter.
