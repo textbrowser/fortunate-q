@@ -89,11 +89,18 @@ class fortunate_q: public QObject
   Q_OBJECT
 
  public:
+  enum class cryptographic_hash_algorithm
+  {
+    Keccak_256 = QCryptographicHash::Keccak_256,
+    Sha256 = QCryptographicHash::Sha256,
+    Sha3_256 = QCryptographicHash::Sha3_256
+  };
+
   fortunate_q
-    (QObject *parent, const QCryptographicHash::Algorithm hash_algorithm):
+    (QObject *parent, const cryptographic_hash_algorithm hash_algorithm):
       QObject(parent)
   {
-    m_R = initialize_prng(hash_algorithm);
+    m_R = initialize_prng(QCryptographicHash::Algorithm(hash_algorithm));
     m_source_indices.resize(POOLS);
     m_tcp_socket_connection_timer.setInterval(500);
   }

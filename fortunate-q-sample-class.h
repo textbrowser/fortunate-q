@@ -37,7 +37,8 @@ class fortunate_q_sample_class: public QObject
  public:
   fortunate_q_sample_class(void):QObject()
   {
-    m_f = new fortunate_q(this, QCryptographicHash::Sha256);
+    m_f = new fortunate_q
+      (this, fortunate_q::cryptographic_hash_algorithm::Sha256);
 #ifndef Q_OS_MACOS
     m_f->set_file_peer("/dev/urandom");
 #endif
@@ -51,7 +52,6 @@ class fortunate_q_sample_class: public QObject
 
   ~fortunate_q_sample_class()
   {
-    m_f->deleteLater();
   }
 
  private:
