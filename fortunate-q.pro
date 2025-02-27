@@ -131,15 +131,14 @@ QMAKE_DISTCLEAN     += -r .qmake* \
 unix {
 QMAKE_EXTRA_TARGETS += purge
 }
-
 HEADERS	       += fortunate-q.h fortunate-q-sample-class.h
 INCLUDEPATH    += .
 MOC_DIR        = Temporary/moc
 OBJECTS_DIR    = Temporary/obj
 PROJECTNAME    = fortunate-q
-QMAKE_STRIP	   = echo
+QMAKE_STRIP    = echo
 RCC_DIR        = Temporary/rcc
 SOURCES	       += fortunate-q-test.cc
-TARGET		     = fortunate-q
-TEMPLATE	     = app
+TARGET         = fortunate-q
+TEMPLATE       = app
 TRANSLATIONS   =
