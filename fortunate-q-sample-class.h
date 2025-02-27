@@ -38,10 +38,8 @@ class fortunate_q_sample_class: public QObject
   fortunate_q_sample_class(void):QObject()
   {
     m_f = new fortunate_q
-      (this, fortunate_q::cryptographic_hash_algorithm::Sha256);
-#ifndef Q_OS_MACOS
+      (this, fortunate_q::cryptographic_hash_algorithm::Sha3_256);
     m_f->set_file_peer("/dev/urandom");
-#endif
     m_f->set_send_byte(0, 5);
     m_f->set_tcp_peer("192.168.178.85", false, 5000);
     connect(m_f,
