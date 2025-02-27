@@ -131,6 +131,7 @@ QMAKE_DISTCLEAN     += -r .qmake* \
 unix {
 QMAKE_EXTRA_TARGETS += purge
 }
+
 HEADERS	       += fortunate-q.h fortunate-q-sample-class.h
 INCLUDEPATH    += .
 MOC_DIR        = Temporary/moc
